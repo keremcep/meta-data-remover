@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Belge Metadata Aracı</title>
+  <title>Document Metadata Tool</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,14 +11,18 @@
     <div class="brand">
       <span class="logo">◧</span>
       <div>
-        <h1>Belge Metadata Aracı</h1>
-        <p>Word, Excel ve PowerPoint belgelerinin tüm metadata'sını görüntüle, düzenle, temizle.</p>
+        <h1 data-i18n="app.title">Document Metadata Tool</h1>
+        <p data-i18n="app.subtitle">View, edit and clean every piece of metadata in Word, Excel and PowerPoint files.</p>
       </div>
     </div>
     <div class="topbar-actions">
       <label class="name-field">
-        <span>Kullanıcı adı</span>
-        <input id="userName" type="text" placeholder="Belgede görünecek ad">
+        <span data-i18n="top.userName">User name</span>
+        <input id="userName" type="text" data-i18n-ph="top.userName.ph" placeholder="Name shown in the document">
+      </label>
+      <label class="name-field lang-field">
+        <span data-i18n="top.language">Language</span>
+        <select id="langSelect" aria-label="Language"></select>
       </label>
     </div>
   </header>
@@ -28,8 +32,8 @@
       <input id="fileInput" type="file" accept=".docx,.xlsx,.pptx,.docm,.xlsm,.pptm,.dotx,.dotm" hidden>
       <div class="dz-inner">
         <div class="dz-icon">⇩</div>
-        <p class="dz-title">Belgeyi buraya sürükleyin veya <button type="button" class="linklike" id="browseBtn">seçin</button></p>
-        <p class="dz-sub">.docx, .xlsx, .pptx desteklenir. Dosya bilgisayarınızdan çıkmaz; yerel sunucuda işlenir.</p>
+        <p class="dz-title"><span data-i18n="dz.title">Drag a document here or</span> <button type="button" class="linklike" id="browseBtn" data-i18n="dz.browse">browse</button></p>
+        <p class="dz-sub" data-i18n="dz.sub">.docx, .xlsx and .pptx are supported. Files never leave your computer; everything runs on the local server.</p>
       </div>
     </section>
 
@@ -43,14 +47,12 @@
         <div class="actions">
           <label class="check">
             <input id="freshDates" type="checkbox">
-            <span>Tarihleri de yenile</span>
+            <span data-i18n="act.freshDates">Refresh dates too</span>
           </label>
-          <button id="btnTemplate" class="btn btn-accent" title="Yapay zeka / araç izlerini temizle, sıradan bir Office kullanıcısı gibi göster">
-            ✦ Kişisel bilgisayar şablonunu uygula
-          </button>
-          <button id="btnSave" class="btn btn-primary">Kaydet ve indir</button>
-          <button id="btnReset" class="btn">Orijinale dön</button>
-          <button id="btnNew" class="btn btn-ghost">Başka dosya</button>
+          <button id="btnTemplate" class="btn btn-accent" data-i18n="act.template" data-i18n-title="act.template.title">✦ Apply personal computer template</button>
+          <button id="btnSave" class="btn btn-primary" data-i18n="act.save">Save &amp; download</button>
+          <button id="btnReset" class="btn" data-i18n="act.reset">Revert to original</button>
+          <button id="btnNew" class="btn btn-ghost" data-i18n="act.new">Another file</button>
         </div>
       </div>
 
@@ -61,9 +63,9 @@
       <div class="grid">
         <section class="card" id="coreCard">
           <header>
-            <h2>Temel özellikler <small>docProps/core.xml</small></h2>
+            <h2><span data-i18n="card.core">Core properties</span> <small>docProps/core.xml</small></h2>
             <div class="card-tools">
-              <select id="coreAdd"><option value="">+ Alan ekle…</option></select>
+              <select id="coreAdd"></select>
             </div>
           </header>
           <div class="rows" id="coreRows"></div>
@@ -71,9 +73,9 @@
 
         <section class="card" id="appCard">
           <header>
-            <h2>Uygulama özellikleri <small>docProps/app.xml</small></h2>
+            <h2><span data-i18n="card.app">App properties</span> <small>docProps/app.xml</small></h2>
             <div class="card-tools">
-              <select id="appAdd"><option value="">+ Alan ekle…</option></select>
+              <select id="appAdd"></select>
             </div>
           </header>
           <div class="rows" id="appRows"></div>
@@ -81,9 +83,9 @@
 
         <section class="card" id="customCard">
           <header>
-            <h2>Özel özellikler <small>docProps/custom.xml</small></h2>
+            <h2><span data-i18n="card.custom">Custom properties</span> <small>docProps/custom.xml</small></h2>
             <div class="card-tools">
-              <button id="customAdd" class="btn btn-sm">+ Özellik ekle</button>
+              <button id="customAdd" class="btn btn-sm" data-i18n="card.addProp">+ Add property</button>
             </div>
           </header>
           <div class="rows" id="customRows"></div>
@@ -91,13 +93,13 @@
 
         <section class="card" id="authorsCard">
           <header>
-            <h2>Yazarlar <small>yorumlar, değişiklik izleme, kişiler</small></h2>
+            <h2><span data-i18n="card.authors">Authors</span> <small data-i18n="card.authors.sub">comments, tracked changes, people</small></h2>
           </header>
           <div class="rows" id="authorRows"></div>
         </section>
 
         <section class="card wide" id="otherCard">
-          <header><h2>Diğer</h2></header>
+          <header><h2 data-i18n="card.other">Other</h2></header>
           <div class="rows" id="otherRows"></div>
         </section>
       </div>
@@ -105,6 +107,7 @@
   </main>
 
   <div id="toast" class="toast hidden"></div>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

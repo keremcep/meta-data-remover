@@ -1,6 +1,8 @@
-/* Belge Metadata Aracı - istemci */
+/* Document Metadata Tool - client */
 (() => {
   'use strict';
+
+  const { t, label } = window.I18N;
 
   const CORE_KEYS = [
     'dc:title', 'dc:subject', 'dc:creator', 'cp:keywords', 'dc:description',
@@ -8,15 +10,6 @@
     'dcterms:modified', 'cp:category', 'cp:contentStatus', 'dc:identifier',
     'dc:language', 'cp:version', 'cp:contentType',
   ];
-  const CORE_LABELS = {
-    'dc:title': 'Başlık', 'dc:subject': 'Konu', 'dc:creator': 'Yazar (oluşturan)',
-    'cp:keywords': 'Etiketler', 'dc:description': 'Açıklama / Yorumlar',
-    'cp:lastModifiedBy': 'Son değiştiren', 'cp:revision': 'Revizyon numarası',
-    'cp:lastPrinted': 'Son yazdırma', 'dcterms:created': 'Oluşturma tarihi',
-    'dcterms:modified': 'Son değiştirme tarihi', 'cp:category': 'Kategori',
-    'cp:contentStatus': 'İçerik durumu', 'dc:identifier': 'Tanımlayıcı',
-    'dc:language': 'Dil', 'cp:version': 'Sürüm', 'cp:contentType': 'İçerik türü',
-  };
   const APP_KEYS = [
     'Template', 'TotalTime', 'Pages', 'Words', 'Characters', 'PresentationFormat',
     'Application', 'DocSecurity', 'Lines', 'Paragraphs', 'Slides', 'Notes',
@@ -24,17 +17,6 @@
     'Company', 'LinksUpToDate', 'CharactersWithSpaces', 'SharedDoc',
     'HyperlinksChanged', 'AppVersion', 'Manager', 'HyperlinkBase', 'HLinks',
   ];
-  const APP_LABELS = {
-    Template: 'Şablon', TotalTime: 'Toplam düzenleme süresi (dk)', Pages: 'Sayfa sayısı',
-    Words: 'Sözcük sayısı', Characters: 'Karakter (boşluksuz)', PresentationFormat: 'Sunu biçimi',
-    Application: 'Uygulama', DocSecurity: 'Belge güvenliği', Lines: 'Satır sayısı',
-    Paragraphs: 'Paragraf sayısı', Slides: 'Slayt sayısı', Notes: 'Not sayısı',
-    HiddenSlides: 'Gizli slayt', MMClips: 'Multimedya klip', ScaleCrop: 'Küçük resim ölçekle',
-    HeadingPairs: 'Başlık çiftleri', TitlesOfParts: 'Bölüm başlıkları', Company: 'Şirket',
-    LinksUpToDate: 'Bağlantılar güncel', CharactersWithSpaces: 'Karakter (boşluklu)',
-    SharedDoc: 'Paylaşılan belge', HyperlinksChanged: 'Köprüler değişti',
-    AppVersion: 'Uygulama sürümü', Manager: 'Yönetici', HyperlinkBase: 'Köprü tabanı', HLinks: 'Köprüler',
-  };
   const COMPLEX = new Set(['HeadingPairs', 'TitlesOfParts', 'HLinks']);
   const CUSTOM_TYPES = ['lpwstr', 'i4', 'r8', 'bool', 'filetime'];
 
@@ -44,7 +26,6 @@
     for (const [k, v] of Object.entries(attrs)) {
       if (k === 'class') n.className = v;
       else if (k === 'text') n.textContent = v;
-      else if (k === 'html') n.innerHTML = v;
       else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
       else if (v !== undefined && v !== null && v !== false) n.setAttribute(k, v === true ? '' : v);
     }
@@ -52,20 +33,20 @@
     return n;
   };
 
-  const state = { file: null, original: null, insp: null, customDirty: false };
+  const state = { file: null, original: null, insp: null, customDirty: false, lastNotes: null };
 
-  // ---------- yardımcılar ----------
+  // ---------- helpers ----------
   function fmtSize(b) {
     if (b < 1024) return b + ' B';
     if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
     return (b / 1024 / 1024).toFixed(2) + ' MB';
   }
   function toast(msg, kind = 'info') {
-    const t = $('toast');
-    t.textContent = msg;
-    t.className = 'toast ' + kind;
+    const node = $('toast');
+    node.textContent = msg;
+    node.className = 'toast ' + kind;
     clearTimeout(toast._h);
-    toast._h = setTimeout(() => t.classList.add('hidden'), 3500);
+    toast._h = setTimeout(() => node.classList.add('hidden'), 3500);
   }
   function busy(on) {
     document.body.classList.toggle('busy', on);
@@ -73,8 +54,8 @@
   }
   function flagBadge(flag) {
     if (!flag) return null;
-    return el('span', { class: 'flag ' + flag.kind, title: flag.reason + ': "' + flag.match + '"' },
-      flag.kind === 'ai' ? 'AI izi' : 'Araç izi');
+    return el('span', { class: 'flag ' + flag.kind, title: (flag.reason || '') + ': "' + flag.match + '"' },
+      flag.kind === 'ai' ? t('flag.ai') : t('flag.tool'));
   }
   function localToIso(v) {
     if (!v) return '';
@@ -92,15 +73,17 @@
   async function apiInspect(file) {
     const fd = new FormData();
     fd.append('file', file, file.name);
+    fd.append('lang', window.I18N.lang);
     const r = await fetch('/api/inspect', { method: 'POST', body: fd });
     const j = await r.json();
-    if (!r.ok) throw new Error(j.error || 'İnceleme hatası');
+    if (!r.ok) throw new Error(j.error || t('err.inspect'));
     return j;
   }
   async function apiApply(file, edits, opts = {}) {
     const fd = new FormData();
     fd.append('file', file, file.name);
     fd.append('edits', JSON.stringify(edits));
+    fd.append('lang', window.I18N.lang);
     if (opts.template) {
       fd.append('template', '1');
       fd.append('name', $('userName').value || '');
@@ -108,36 +91,36 @@
     }
     const r = await fetch('/api/apply', { method: 'POST', body: fd });
     if (!r.ok) {
-      let msg = 'Uygulama hatası';
-      try { msg = (await r.json()).error || msg; } catch { /* yoksay */ }
+      let msg = t('err.apply');
+      try { msg = (await r.json()).error || msg; } catch { /* ignore */ }
       throw new Error(msg);
     }
     const blob = await r.blob();
     let notes = [];
-    try { notes = JSON.parse(decodeURIComponent(r.headers.get('X-Notes') || '[]')); } catch { /* yoksay */ }
+    try { notes = JSON.parse(decodeURIComponent(r.headers.get('X-Notes') || '[]')); } catch { /* ignore */ }
     return { file: new File([blob], file.name, { type: file.type }), notes };
   }
 
-  // ---------- satır oluşturucular ----------
-  function propRow({ key, label, value, flag, isDate, complex, added, hint }) {
+  // ---------- row builders ----------
+  function propRow({ key, labelText, value, flag, isDate, complex, added }) {
     const row = el('div', { class: 'row', 'data-key': key, 'data-original': added ? '' : value, 'data-added': added ? '1' : '' });
     if (added) row.classList.add('added');
     const head = el('div', { class: 'row-head' },
-      el('span', { class: 'row-label', text: label || key }),
+      el('span', { class: 'row-label', text: labelText || key, 'data-removed': t('row.removedSuffix'), 'data-new': t('row.newSuffix') }),
       el('code', { class: 'row-key', text: key }),
       flagBadge(flag),
     );
     let control;
     if (complex) {
       control = el('textarea', { class: 'input mono', readonly: true, rows: 2 }, value);
-      control.title = 'Karmaşık alan: yalnızca görüntülenir. Kaldırmak için çöp kutusunu kullanın.';
+      control.title = t('row.complex');
     } else if (isDate) {
       const wrap = el('div', { class: 'date-wrap' });
       const dt = el('input', { class: 'input', type: 'datetime-local', step: '1', value: isoToLocal(value) });
       const iso = el('input', { class: 'input mono iso', type: 'text', value: value, placeholder: 'YYYY-MM-DDTHH:MM:SSZ' });
       dt.addEventListener('input', () => { if (dt.value) iso.value = localToIso(dt.value); });
       iso.addEventListener('input', () => { dt.value = isoToLocal(iso.value); });
-      const nowBtn = el('button', { class: 'btn btn-sm', type: 'button', text: 'Şimdi', onclick: () => {
+      const nowBtn = el('button', { class: 'btn btn-sm', type: 'button', text: t('row.now'), onclick: () => {
         const n = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
         iso.value = n; dt.value = isoToLocal(n);
       } });
@@ -147,15 +130,15 @@
     } else {
       control = el('input', { class: 'input', type: 'text', value: value ?? '' });
     }
-    const del = el('button', { class: 'icon-btn', type: 'button', title: 'Alanı kaldır', text: '🗑' });
+    const del = el('button', { class: 'icon-btn', type: 'button', title: t('row.remove'), text: '🗑' });
     del.addEventListener('click', () => {
       if (row.dataset.added) { row.remove(); refreshAddSelects(); return; }
       row.classList.toggle('removed');
-      del.textContent = row.classList.contains('removed') ? '↺' : '🗑';
-      del.title = row.classList.contains('removed') ? 'Geri al' : 'Alanı kaldır';
+      const removed = row.classList.contains('removed');
+      del.textContent = removed ? '↺' : '🗑';
+      del.title = removed ? t('row.undo') : t('row.remove');
     });
     row.append(head, el('div', { class: 'row-ctl' }, control, del));
-    if (hint) row.append(el('div', { class: 'row-hint', text: hint }));
     return row;
   }
 
@@ -167,15 +150,15 @@
 
   function customRow(p = { name: '', type: 'lpwstr', value: '' }, flag = null) {
     const row = el('div', { class: 'row custom' });
-    const name = el('input', { class: 'input', type: 'text', placeholder: 'Ad', value: p.name });
+    const name = el('input', { class: 'input', type: 'text', placeholder: t('row.name'), value: p.name });
     const type = el('select', { class: 'input select' });
-    for (const t of CUSTOM_TYPES) type.append(el('option', { value: t, text: t, selected: t === p.type }));
+    for (const ty of CUSTOM_TYPES) type.append(el('option', { value: ty, text: ty, selected: ty === p.type }));
     if (!CUSTOM_TYPES.includes(p.type)) type.append(el('option', { value: p.type, text: p.type, selected: true }));
-    const value = el('input', { class: 'input', type: 'text', placeholder: 'Değer', value: p.value });
-    const del = el('button', { class: 'icon-btn', type: 'button', title: 'Kaldır', text: '🗑', onclick: () => { row.remove(); state.customDirty = true; } });
+    const value = el('input', { class: 'input', type: 'text', placeholder: t('row.value'), value: p.value });
+    const del = el('button', { class: 'icon-btn', type: 'button', title: t('row.remove'), text: '🗑', onclick: () => { row.remove(); state.customDirty = true; } });
     for (const i of [name, type, value]) i.addEventListener('input', () => { state.customDirty = true; });
     row.append(
-      el('div', { class: 'row-head' }, el('span', { class: 'row-label', text: 'Özel özellik' }), flagBadge(flag)),
+      el('div', { class: 'row-head' }, el('span', { class: 'row-label', text: t('row.custom') }), flagBadge(flag)),
       el('div', { class: 'row-ctl custom-grid' }, name, type, value, del),
     );
     return row;
@@ -186,13 +169,13 @@
     row.append(
       el('div', { class: 'row-head' },
         el('span', { class: 'row-label', text: a.name }),
-        el('span', { class: 'muted small', text: `${a.count} yerde · ${a.parts.map((p) => p.replace(/^.*\//, '')).join(', ')}` }),
+        el('span', { class: 'muted small', text: t('row.places', { n: a.count, parts: a.parts.map((p) => p.replace(/^.*\//, '')).join(', ') }) }),
         flagBadge(a.flag),
       ),
       el('div', { class: 'row-ctl' },
         el('span', { class: 'arrow', text: '→' }),
-        el('input', { class: 'input', type: 'text', value: a.name, placeholder: 'Yeni ad' }),
-        el('button', { class: 'btn btn-sm', type: 'button', text: 'Kullanıcı adı yap', onclick: (e) => {
+        el('input', { class: 'input', type: 'text', value: a.name, placeholder: t('row.newName') }),
+        el('button', { class: 'btn btn-sm', type: 'button', text: t('row.useUserName'), onclick: (e) => {
           e.currentTarget.parentElement.querySelector('input').value = $('userName').value;
         } }),
       ),
@@ -202,14 +185,14 @@
 
   // ---------- render ----------
   function refreshAddSelects() {
-    const fill = (sel, keys, labels, rowsEl) => {
+    const fill = (sel, keys, group, rowsEl) => {
       const present = new Set([...rowsEl.querySelectorAll('.row')].map((r) => r.dataset.key));
       sel.innerHTML = '';
-      sel.append(el('option', { value: '', text: '+ Alan ekle…' }));
-      for (const k of keys) if (!present.has(k)) sel.append(el('option', { value: k, text: (labels[k] || k) + '  (' + k + ')' }));
+      sel.append(el('option', { value: '', text: t('card.addField') }));
+      for (const k of keys) if (!present.has(k)) sel.append(el('option', { value: k, text: label(group, k) + '  (' + k + ')' }));
     };
-    fill($('coreAdd'), CORE_KEYS, CORE_LABELS, $('coreRows'));
-    fill($('appAdd'), APP_KEYS.filter((k) => !COMPLEX.has(k)), APP_LABELS, $('appRows'));
+    fill($('coreAdd'), CORE_KEYS, 'core', $('coreRows'));
+    fill($('appAdd'), APP_KEYS.filter((k) => !COMPLEX.has(k)), 'app', $('appRows'));
   }
 
   function render(insp) {
@@ -218,59 +201,59 @@
     $('workspace').classList.remove('hidden');
     $('dropzone').classList.add('compact');
 
-    $('fileBadge').textContent = (insp.fileType || 'dosya').toUpperCase();
+    $('fileBadge').textContent = (insp.fileType || 'file').toUpperCase();
     $('fileName').textContent = insp.fileName;
-    $('fileMeta').textContent = `${fmtSize(insp.size)} · ${insp.entries ? insp.entries.length + ' paket parçası' : ''}`;
+    $('fileMeta').textContent = fmtSize(insp.size) + (insp.entries ? ' · ' + t('other.partsCount', { n: insp.entries.length }) : '');
 
     const notice = $('notice');
+    notice.classList.add('hidden');
     if (!insp.supported) {
       notice.className = 'notice error';
-      notice.textContent = insp.reason || 'Bu dosya türü desteklenmiyor.';
+      notice.textContent = insp.reason || t('err.unsupported');
+      $('flagsBanner').classList.add('hidden');
       for (const id of ['coreRows', 'appRows', 'customRows', 'authorRows', 'otherRows']) $(id).innerHTML = '';
       return;
     }
-    notice.classList.add('hidden');
 
-    // Şüpheli işaretler
+    // Suspicious markers
     const fb = $('flagsBanner');
     fb.innerHTML = '';
+    fb.classList.remove('hidden');
     if (insp.flags.length) {
-      fb.classList.remove('hidden');
-      fb.append(el('strong', { text: `${insp.flags.length} şüpheli işaret bulundu` }));
+      fb.className = 'flags';
+      fb.append(el('strong', { text: t('flags.found', { n: insp.flags.length }) }));
       const ul = el('ul');
       for (const f of insp.flags) {
         ul.append(el('li', {}, el('b', { text: f.where + ' · ' + f.key + ': ' }), el('span', { text: `"${f.match}" (${f.reason})` })));
       }
-      fb.append(ul, el('p', { class: 'small', text: 'Şablon butonu bunların hepsini otomatik temizler; dilerseniz aşağıdan tek tek de düzenleyebilirsiniz.' }));
+      fb.append(ul, el('p', { class: 'small', text: t('flags.hint') }));
     } else {
-      fb.classList.remove('hidden');
       fb.className = 'flags clean';
-      fb.append(el('strong', { text: 'Şüpheli işaret bulunmadı.' }), el('span', { class: 'small', text: ' Yine de tüm alanları aşağıdan gözden geçirebilirsiniz.' }));
+      fb.append(el('strong', { text: t('flags.clean') }), el('span', { class: 'small', text: t('flags.cleanHint') }));
     }
-    if (insp.flags.length) fb.className = 'flags';
 
     // Core
     const cr = $('coreRows');
     cr.innerHTML = '';
-    if (!insp.core.exists) cr.append(el('p', { class: 'muted', text: 'core.xml yok. Alan eklediğinizde oluşturulur.' }));
-    for (const it of insp.core.items) cr.append(propRow({ key: it.key, label: CORE_LABELS[it.key], value: it.value, flag: it.flag, isDate: it.isDate }));
+    if (!insp.core.exists) cr.append(el('p', { class: 'muted', text: t('empty.core') }));
+    for (const it of insp.core.items) cr.append(propRow({ key: it.key, labelText: label('core', it.key), value: it.value, flag: it.flag, isDate: it.isDate }));
 
     // App
     const ar = $('appRows');
     ar.innerHTML = '';
-    if (!insp.app.exists) ar.append(el('p', { class: 'muted', text: 'app.xml yok. Alan eklediğinizde oluşturulur.' }));
-    for (const it of insp.app.items) ar.append(propRow({ key: it.key, label: APP_LABELS[it.key], value: it.value, flag: it.flag, complex: it.complex }));
+    if (!insp.app.exists) ar.append(el('p', { class: 'muted', text: t('empty.app') }));
+    for (const it of insp.app.items) ar.append(propRow({ key: it.key, labelText: label('app', it.key), value: it.value, flag: it.flag, complex: it.complex }));
 
     // Custom
     const cu = $('customRows');
     cu.innerHTML = '';
-    if (!insp.custom.items.length) cu.append(el('p', { class: 'muted empty', text: 'Özel özellik yok.' }));
+    if (!insp.custom.items.length) cu.append(el('p', { class: 'muted empty', text: t('empty.custom') }));
     for (const p of insp.custom.items) cu.append(customRow(p, p.flag));
 
     // Authors
     const au = $('authorRows');
     au.innerHTML = '';
-    if (!insp.authors.length) au.append(el('p', { class: 'muted', text: 'Yorum, değişiklik izleme veya kişi kaydı bulunmadı.' }));
+    if (!insp.authors.length) au.append(el('p', { class: 'muted', text: t('empty.authors') }));
     for (const a of insp.authors) au.append(authorRow(a));
 
     // Other
@@ -278,22 +261,21 @@
     ot.innerHTML = '';
     const thumb = el('label', { class: 'check' },
       el('input', { id: 'removeThumb', type: 'checkbox', disabled: !insp.thumbnail }),
-      el('span', { text: insp.thumbnail ? `Küçük resmi kaldır (${insp.thumbnail})` : 'Küçük resim yok' }));
-    ot.append(el('div', { class: 'row' }, el('div', { class: 'row-head' }, el('span', { class: 'row-label', text: 'Küçük resim' })), thumb));
+      el('span', { text: insp.thumbnail ? t('other.thumbRemove', { path: insp.thumbnail }) : t('other.thumbNone') }));
+    ot.append(el('div', { class: 'row' }, el('div', { class: 'row-head' }, el('span', { class: 'row-label', text: t('other.thumb') })), thumb));
 
     if (insp.stats) {
-      const s = insp.stats;
       ot.append(el('div', { class: 'row' },
-        el('div', { class: 'row-head' }, el('span', { class: 'row-label', text: 'Belge içeriğinden hesaplanan istatistik' })),
-        el('div', { class: 'muted small', text: `${s.words} sözcük · ${s.chars} karakter (boşluksuz) · ${s.charsWithSpaces} karakter (boşluklu) · ${s.paragraphs} paragraf · ~${s.pages} sayfa · ~${s.lines} satır` }),
+        el('div', { class: 'row-head' }, el('span', { class: 'row-label', text: t('other.stats') })),
+        el('div', { class: 'muted small', text: t('other.statsLine', insp.stats) }),
       ));
     }
 
     const scanRow = el('div', { class: 'row' });
-    scanRow.append(el('div', { class: 'row-head' }, el('span', { class: 'row-label', text: `İçerik taraması (${insp.scan.length} eşleşme)` }),
-      el('span', { class: 'muted small', text: 'Belge metni ve XML parçalarında geçen AI / araç anahtar sözcükleri. Bilgi amaçlı; metin içeriği değiştirilmez.' })));
+    scanRow.append(el('div', { class: 'row-head' }, el('span', { class: 'row-label', text: t('other.scan', { n: insp.scan.length }) }),
+      el('span', { class: 'muted small', text: t('other.scanHint') })));
     if (insp.scan.length) {
-      const det = el('details', {}, el('summary', { text: 'Eşleşmeleri göster' }));
+      const det = el('details', {}, el('summary', { text: t('other.scanShow') }));
       const ul = el('ul', { class: 'scan' });
       for (const h of insp.scan) ul.append(el('li', {}, el('code', { text: h.part }), ' ', flagBadge(h), ' ', el('span', { class: 'snippet', text: '…' + h.snippet + '…' })));
       det.append(ul);
@@ -301,23 +283,23 @@
     }
     ot.append(scanRow);
 
-    const entries = el('details', {}, el('summary', { text: `Paket parçaları (${insp.entries.length})` }));
+    const entries = el('details', {}, el('summary', { text: t('other.parts', { n: insp.entries.length }) }));
     const ul = el('ul', { class: 'entries mono small' });
     for (const e of insp.entries) ul.append(el('li', { text: `${e.path}  ${e.date ? '· ' + e.date.slice(0, 10) : ''}` }));
-    entries.append(ul, el('p', { class: 'muted small', text: 'Kaydederken tüm parça tarihleri Word gibi 1980-01-01 yapılır.' }));
+    entries.append(ul, el('p', { class: 'muted small', text: t('other.partsHint') }));
     ot.append(el('div', { class: 'row' }, entries));
 
     refreshAddSelects();
   }
 
-  // ---------- düzenlemeleri topla ----------
+  // ---------- collect edits ----------
   function collectEdits() {
     const edits = { core: {}, app: {}, authors: {} };
     const gather = (rowsEl, target) => {
       for (const row of rowsEl.querySelectorAll('.row[data-key]')) {
         const key = row.dataset.key;
         if (row.classList.contains('removed')) { target[key] = null; continue; }
-        if (row.querySelector('textarea[readonly]')) continue; // karmaşık alan
+        if (row.querySelector('textarea[readonly]')) continue; // complex field
         const v = rowValue(row);
         if (row.dataset.added || v !== row.dataset.original) target[key] = v;
       }
@@ -341,13 +323,14 @@
     return edits;
   }
 
-  // ---------- olaylar ----------
+  // ---------- events ----------
   async function loadFile(file, { keepOriginal = false } = {}) {
     busy(true);
     try {
       const insp = await apiInspect(file);
       state.file = file;
       if (!keepOriginal) state.original = file;
+      state.lastNotes = null;
       render(insp);
     } catch (e) {
       toast(e.message, 'error');
@@ -372,22 +355,23 @@
     n.append(el('strong', { text: title }));
     if (notes.length) {
       const ul = el('ul');
-      for (const t of notes) ul.append(el('li', { text: t }));
+      for (const txt of notes) ul.append(el('li', { text: txt }));
       n.append(ul);
     }
   }
 
   $('btnTemplate').addEventListener('click', async () => {
     if (!state.file) return;
-    if (!$('userName').value.trim()) { toast('Önce kullanıcı adını girin.', 'error'); $('userName').focus(); return; }
+    if (!$('userName').value.trim()) { toast(t('toast.needName'), 'error'); $('userName').focus(); return; }
     busy(true);
     try {
       const { file, notes } = await apiApply(state.file, collectEdits(), { template: true });
       const insp = await apiInspect(file);
       state.file = file;
       render(insp);
-      showNotes(notes, 'Şablon uygulandı. Sonucu gözden geçirin, ardından "Kaydet ve indir".');
-      toast('Şablon uygulandı');
+      state.lastNotes = notes;
+      showNotes(notes, t('notice.template'));
+      toast(t('toast.template'));
     } catch (e) {
       toast(e.message, 'error');
     } finally {
@@ -404,7 +388,7 @@
       state.file = file;
       render(insp);
       download(file);
-      toast('Dosya indirildi');
+      toast(t('toast.saved'));
     } catch (e) {
       toast(e.message, 'error');
     } finally {
@@ -427,14 +411,14 @@
     if (!k) return;
     const isDate = k.startsWith('dcterms:') || k === 'cp:lastPrinted';
     $('coreRows').querySelector('p.muted')?.remove();
-    $('coreRows').append(propRow({ key: k, label: CORE_LABELS[k], value: isDate ? new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') : '', isDate, added: true }));
+    $('coreRows').append(propRow({ key: k, labelText: label('core', k), value: isDate ? new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') : '', isDate, added: true }));
     refreshAddSelects();
   });
   $('appAdd').addEventListener('change', (e) => {
     const k = e.target.value;
     if (!k) return;
     $('appRows').querySelector('p.muted')?.remove();
-    $('appRows').append(propRow({ key: k, label: APP_LABELS[k], value: '', added: true }));
+    $('appRows').append(propRow({ key: k, labelText: label('app', k), value: '', added: true }));
     refreshAddSelects();
   });
   $('customAdd').addEventListener('click', () => {
@@ -443,7 +427,7 @@
     state.customDirty = true;
   });
 
-  // Sürükle-bırak
+  // Drag & drop
   const dz = $('dropzone');
   $('browseBtn').addEventListener('click', (e) => { e.stopPropagation(); $('fileInput').click(); });
   dz.addEventListener('click', () => $('fileInput').click());
@@ -462,16 +446,38 @@
     if (f) loadFile(f);
   });
 
-  // Kullanıcı adı: yerel depodan / sunucudan
+  // Language switcher
+  const langSel = $('langSelect');
+  for (const [code, name] of Object.entries(window.I18N.LANGS)) langSel.append(el('option', { value: code, text: name, selected: code === window.I18N.lang }));
+  langSel.addEventListener('change', async () => {
+    window.I18N.setLang(langSel.value);
+    refreshAddSelects();
+    if (state.file) {
+      // Re-inspect so server-side texts (flag reasons, locations) come back in the new language
+      busy(true);
+      try {
+        const insp = await apiInspect(state.file);
+        render(insp);
+        if (state.lastNotes) showNotes(state.lastNotes, t('notice.template'));
+      } catch (e) {
+        toast(e.message, 'error');
+      } finally {
+        busy(false);
+      }
+    }
+  });
+  window.I18N.applyStatic();
+
+  // User name: from local storage / server
   (async () => {
     try {
       const saved = localStorage.getItem('mdr-username');
       const cfg = await (await fetch('/api/config')).json();
       $('userName').value = saved || cfg.defaultName || '';
-      $('userName').placeholder = cfg.defaultName || 'Ad';
-    } catch { /* yoksay */ }
+      if (cfg.defaultName) $('userName').placeholder = cfg.defaultName;
+    } catch { /* ignore */ }
   })();
   $('userName').addEventListener('input', () => {
-    try { localStorage.setItem('mdr-username', $('userName').value); } catch { /* yoksay */ }
+    try { localStorage.setItem('mdr-username', $('userName').value); } catch { /* ignore */ }
   });
 })();

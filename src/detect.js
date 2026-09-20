@@ -1,4 +1,4 @@
-// Şüpheli (yapay zeka / otomatik üretici) işaret tespiti
+// Suspicious marker detection (AI tools / automatic document generators)
 
 const AI_PATTERNS = [
   [/chat\s?gpt/i, 'ai'],
@@ -25,7 +25,7 @@ const AI_PATTERNS = [
   [/\bassistant\b/i, 'ai'],
   [/\basistan/i, 'ai'],
   [/\bbot\b/i, 'ai'],
-  // Otomatik belge üretici kütüphaneler / farklı ofis yazılımları
+  // Document generator libraries / non-Microsoft office suites
   [/python-docx/i, 'tool'],
   [/python-pptx/i, 'tool'],
   [/openpyxl/i, 'tool'],
@@ -56,7 +56,7 @@ const AI_PATTERNS = [
   [/\bjava\b/i, 'tool'],
 ];
 
-// Bilinen üretici varsayılan değerleri (ör. python-docx şablonu)
+// Known generator default values (e.g. the python-docx template)
 const KNOWN_DEFAULTS = [
   '2013-12-23T23:15:00Z',
   '2013-12-23T23:15:00.000Z',
@@ -73,7 +73,7 @@ const OFFICE_APPS = [
 ];
 
 /**
- * Bir metin değerini inceler; şüpheli ise {kind, match} döner, değilse null.
+ * Inspect a text value; returns {kind, match, reasonKey} when suspicious, otherwise null.
  */
 export function flagValue(value, key = '') {
   if (value === null || value === undefined) return null;
@@ -81,24 +81,24 @@ export function flagValue(value, key = '') {
   if (!s) return null;
 
   if (KNOWN_DEFAULTS.includes(s)) {
-    return { kind: 'tool', match: s, reason: 'Bilinen üretici varsayılan değeri' };
+    return { kind: 'tool', match: s, reasonKey: 'reason.knownDefault' };
   }
 
   if (key === 'Application' && !OFFICE_APPS.some((r) => r.test(s))) {
-    return { kind: 'tool', match: s, reason: 'Microsoft Office dışı uygulama' };
+    return { kind: 'tool', match: s, reasonKey: 'reason.nonOffice' };
   }
 
   for (const [re, kind] of AI_PATTERNS) {
     const m = s.match(re);
     if (m) {
-      return { kind, match: m[0], reason: kind === 'ai' ? 'Yapay zeka işareti' : 'Otomatik üretici / araç izi' };
+      return { kind, match: m[0], reasonKey: 'reason.' + kind };
     }
   }
   return null;
 }
 
 /**
- * Ham metin içinde tüm eşleşmeleri bul (içerik taraması için).
+ * Find every match in raw text (content scan).
  */
 export function scanText(text, limit = 30) {
   const hits = [];

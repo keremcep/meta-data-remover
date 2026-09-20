@@ -73,6 +73,14 @@ assert(insp.stats && insp.stats.words > 10, 'istatistik hesaplandı: ' + JSON.st
 
 const { edits, notes } = buildTemplateEdits(insp, { name: 'Kerem' });
 console.log('Şablon notları:'); for (const n of notes) console.log('  -', n);
+assert(notes[0] === 'Author and last modified by: "Kerem"', 'notlar varsayılan olarak İngilizce');
+assert(insp.flags[0].reason === 'Generator / tool trace' && insp.flags[0].where === 'Core property', 'bayrak metinleri İngilizce');
+const inspTr = await inspect(await openZip(buf), 'fake-ai.docx', buf.length, 'tr');
+assert(inspTr.flags[0].reason === 'Otomatik üretici / araç izi', 'tr dili bayrak metinleri Türkçe');
+const trNotes = buildTemplateEdits(inspTr, { name: 'Kerem', lang: 'tr' }).notes;
+assert(trNotes[0] === 'Yazar ve son değiştiren: "Kerem"', 'tr dili notlar Türkçe');
+assert(trNotes.some((n) => n.includes('1 şüpheli özel özellik')), 'tr çoğul biçimi');
+assert(notes.some((n) => n === '1 suspicious custom property removed'), 'en tekil biçimi');
 await applyEdits(zip, edits);
 const out = await saveZip(zip);
 writeFileSync(new URL('./out/fake-ai.cleaned.docx', import.meta.url), out);

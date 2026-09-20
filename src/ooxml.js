@@ -1,7 +1,8 @@
-// OOXML (docx / xlsx / pptx) metadata okuma ve yazma
+// OOXML (docx / xlsx / pptx) metadata reading and writing
 import JSZip from 'jszip';
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 import { flagValue, scanText } from './detect.js';
+import { t, DEFAULT_LANG } from './i18n.js';
 
 export const NS = {
   cp: 'http://schemas.openxmlformats.org/package/2006/metadata/core-properties',
@@ -310,7 +311,12 @@ async function docxStats(zip) {
   };
 }
 
-export async function inspect(zip, fileName, size) {
+function localizeFlag(flag, lang) {
+  if (!flag) return null;
+  return { kind: flag.kind, match: flag.match, reasonKey: flag.reasonKey, reason: t(lang, flag.reasonKey) };
+}
+
+export async function inspect(zip, fileName, size, lang = DEFAULT_LANG) {
   const type = detectType(zip);
   const [core, app, custom] = await Promise.all([readCore(zip), readApp(zip), readCustom(zip)]);
   const authors = type ? await readAuthors(zip, type) : [];
@@ -321,14 +327,20 @@ export async function inspect(zip, fileName, size) {
     .map((f) => ({ path: f.name, date: f.date ? f.date.toISOString() : null }));
   const stats = type === 'docx' ? await docxStats(zip) : null;
 
+  // Localize flag texts
+  for (const it of core.items) it.flag = localizeFlag(it.flag, lang);
+  for (const it of app.items) it.flag = localizeFlag(it.flag, lang);
+  for (const it of custom.items) it.flag = localizeFlag(it.flag, lang);
+  for (const a of authors) a.flag = localizeFlag(a.flag, lang);
+
   const flags = [];
-  for (const it of core.items) if (it.flag) flags.push({ where: 'Temel özellik', key: it.key, value: it.value, ...it.flag });
-  for (const it of app.items) if (it.flag) flags.push({ where: 'Uygulama özelliği', key: it.key, value: it.value, ...it.flag });
-  for (const it of custom.items) if (it.flag) flags.push({ where: 'Özel özellik', key: it.name, value: it.value, ...it.flag });
-  for (const a of authors) if (a.flag) flags.push({ where: 'Yazar (yorum/değişiklik)', key: a.name, value: a.parts.join(', '), ...a.flag });
+  for (const it of core.items) if (it.flag) flags.push({ where: t(lang, 'where.core'), key: it.key, value: it.value, ...it.flag });
+  for (const it of app.items) if (it.flag) flags.push({ where: t(lang, 'where.app'), key: it.key, value: it.value, ...it.flag });
+  for (const it of custom.items) if (it.flag) flags.push({ where: t(lang, 'where.custom'), key: it.name, value: it.value, ...it.flag });
+  for (const a of authors) if (a.flag) flags.push({ where: t(lang, 'where.authors'), key: a.name, value: a.parts.join(', '), ...a.flag });
 
   return {
-    fileName, size, fileType: type, supported: !!type,
+    fileName, size, fileType: type, supported: !!type, lang,
     core, app, custom, authors, scan, thumbnail, entries, stats, flags,
   };
 }

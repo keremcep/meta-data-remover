@@ -45,6 +45,8 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px
 .logo { font-size: 26px; color: var(--accent); }
 .name-field { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .name-field input { width: 220px; }
+.topbar-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: flex-end; }
+.lang-field select { padding: 7px 8px; font-size: 13px; }
 
 main { max-width: 1240px; margin: 0 auto; padding: 20px 24px 60px; }
 
@@ -117,8 +119,8 @@ select.input, select { border: 1px solid var(--border); border-radius: 8px; padd
 .row { padding: 10px 0; border-bottom: 1px dashed var(--border); }
 .row:last-child { border-bottom: none; }
 .row.removed .row-ctl .input, .row.removed .date-wrap { opacity: .4; text-decoration: line-through; pointer-events: none; }
-.row.removed .row-label::after { content: " (kaldırılacak)"; color: var(--danger); font-weight: 400; }
-.row.added .row-label::after { content: " (yeni)"; color: var(--primary); font-weight: 400; }
+.row.removed .row-label::after { content: attr(data-removed); color: var(--danger); font-weight: 400; }
+.row.added .row-label::after { content: attr(data-new); color: var(--primary); font-weight: 400; }
 .row-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
 .row-label { font-weight: 600; font-size: 13px; }
 .row-key { color: var(--muted); background: #f0f2f7; padding: 1px 6px; border-radius: 4px; }
