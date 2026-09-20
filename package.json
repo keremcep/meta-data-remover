@@ -1,0 +1,37 @@
+{
+  "name": "meta-data-remover",
+  "version": "1.0.0",
+  "description": "Office belgelerinin (docx/xlsx/pptx) metadata'sını görüntüleyen, düzenleyen ve temizleyen yerel web aracı",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node test/smoke.mjs"
+  },
+  "keywords": [
+    "metadata",
+    "docx",
+    "xlsx",
+    "pptx",
+    "ooxml",
+    "office",
+    "privacy",
+    "document-inspector"
+  ],
+  "author": "keremcep",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keremcep/meta-data-remover.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.12",
+    "express": "^5.2.1",
+    "jszip": "^3.10.1",
+    "multer": "^2.4.0"
+  }
+}

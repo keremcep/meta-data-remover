@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Belge Metadata Aracı</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◧</span>
+      <div>
+        <h1>Belge Metadata Aracı</h1>
+        <p>Word, Excel ve PowerPoint belgelerinin tüm metadata'sını görüntüle, düzenle, temizle.</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <label class="name-field">
+        <span>Kullanıcı adı</span>
+        <input id="userName" type="text" placeholder="Belgede görünecek ad">
+      </label>
+    </div>
+  </header>
+
+  <main>
+    <section id="dropzone" class="dropzone" tabindex="0">
+      <input id="fileInput" type="file" accept=".docx,.xlsx,.pptx,.docm,.xlsm,.pptm,.dotx,.dotm" hidden>
+      <div class="dz-inner">
+        <div class="dz-icon">⇩</div>
+        <p class="dz-title">Belgeyi buraya sürükleyin veya <button type="button" class="linklike" id="browseBtn">seçin</button></p>
+        <p class="dz-sub">.docx, .xlsx, .pptx desteklenir. Dosya bilgisayarınızdan çıkmaz; yerel sunucuda işlenir.</p>
+      </div>
+    </section>
+
+    <section id="workspace" class="workspace hidden">
+      <div class="filebar">
+        <div class="fileinfo">
+          <span id="fileBadge" class="badge">DOCX</span>
+          <strong id="fileName"></strong>
+          <span id="fileMeta" class="muted"></span>
+        </div>
+        <div class="actions">
+          <label class="check">
+            <input id="freshDates" type="checkbox">
+            <span>Tarihleri de yenile</span>
+          </label>
+          <button id="btnTemplate" class="btn btn-accent" title="Yapay zeka / araç izlerini temizle, sıradan bir Office kullanıcısı gibi göster">
+            ✦ Kişisel bilgisayar şablonunu uygula
+          </button>
+          <button id="btnSave" class="btn btn-primary">Kaydet ve indir</button>
+          <button id="btnReset" class="btn">Orijinale dön</button>
+          <button id="btnNew" class="btn btn-ghost">Başka dosya</button>
+        </div>
+      </div>
+
+      <div id="notice" class="notice hidden"></div>
+
+      <div id="flagsBanner" class="flags hidden"></div>
+
+      <div class="grid">
+        <section class="card" id="coreCard">
+          <header>
+            <h2>Temel özellikler <small>docProps/core.xml</small></h2>
+            <div class="card-tools">
+              <select id="coreAdd"><option value="">+ Alan ekle…</option></select>
+            </div>
+          </header>
+          <div class="rows" id="coreRows"></div>
+        </section>
+
+        <section class="card" id="appCard">
+          <header>
+            <h2>Uygulama özellikleri <small>docProps/app.xml</small></h2>
+            <div class="card-tools">
+              <select id="appAdd"><option value="">+ Alan ekle…</option></select>
+            </div>
+          </header>
+          <div class="rows" id="appRows"></div>
+        </section>
+
+        <section class="card" id="customCard">
+          <header>
+            <h2>Özel özellikler <small>docProps/custom.xml</small></h2>
+            <div class="card-tools">
+              <button id="customAdd" class="btn btn-sm">+ Özellik ekle</button>
+            </div>
+          </header>
+          <div class="rows" id="customRows"></div>
+        </section>
+
+        <section class="card" id="authorsCard">
+          <header>
+            <h2>Yazarlar <small>yorumlar, değişiklik izleme, kişiler</small></h2>
+          </header>
+          <div class="rows" id="authorRows"></div>
+        </section>
+
+        <section class="card wide" id="otherCard">
+          <header><h2>Diğer</h2></header>
+          <div class="rows" id="otherRows"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>
